@@ -256,7 +256,8 @@ void isolate_initial(void)
  * @argv:	Command line options
  *
  * Should:
- *  - close all open files except for standard streams and the one from --fd,
+ *  - close all open files except for standard streams and the ones from --fd
+ *    and --ready-fd,
  *    unless --pass-fds is used, in which case all fds are preserved
  *  - move the --fd descriptor out of the range 0-2
  *  - update the execution context
@@ -264,6 +265,18 @@ void isolate_initial(void)
 void isolate_fds(struct ctx *c, int argc, char **argv)
 {
 	conf_fds(c, argc, argv);
+
+	if (c->fd_ready >= 0) {
+		/* Move it clear of standard streams and the tap fd, and make
+		 * sure we don't leak it to a spawned command
+		 */
+		int new_fd = fcntl(c->fd_ready, F_DUPFD_CLOEXEC,
+				   STDERR_FILENO + 3);
+
+		if (new_fd < 0 || close(c->fd_ready))
+			die_perror("Could not move --ready-fd descriptor");
+		c->fd_ready = new_fd;
+	}
 
 	if (c->pass_fds) {
 		if (c->fd_tap >= 0 && c->fd_tap < STDERR_FILENO + 1) {
@@ -285,6 +298,13 @@ void isolate_fds(struct ctx *c, int argc, char **argv)
 			     close(c->fd_tap)))
 				die_perror("Could not move --fd descriptor");
 			c->fd_tap = close_from++;
+		}
+
+		if (c->fd_ready >= 0) {
+			if (dup3(c->fd_ready, close_from, O_CLOEXEC) < 0 ||
+			    close(c->fd_ready))
+				die_perror("Could not move --ready-fd descriptor");
+			c->fd_ready = close_from++;
 		}
 
 		/* Close leaked file descriptors */

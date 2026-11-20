@@ -154,6 +154,14 @@ Write own PID to \fIfile\fR once initialisation is done, before forking to
 background (if configured to do so).
 
 .TP
+.BR \-\-ready-fd " " \fIFD
+Write \fB1\fR followed by a newline to the file descriptor \fIFD\fR, inherited
+from the parent process, once initialisation is done, then close it. If this is
+the write end of a pipe, the parent process can read from it to find out when
+\fBpasst\fR or \fBpasta\fR is ready, without waiting for it to fork to
+background. The descriptor is never passed to a command spawned by \fBpasta\fR.
+
+.TP
 .BR \-m ", " \-\-mtu " " \fImtu
 Assign \fImtu\fR via DHCP (option 26) and NDP (option type 5). A zero value
 disables assignment.

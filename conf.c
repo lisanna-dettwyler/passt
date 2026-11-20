@@ -623,6 +623,7 @@ static void usage(const char *name, FILE *f, int status)
 		"  -F, --fd FD		Use FD as pre-opened connected socket\n"
 		"  -p, --pcap FILE	Log tap-facing traffic to pcap file\n"
 		"  -P, --pid FILE	Write own PID to the given file\n"
+		"  --ready-fd FD		Write to FD, then close it, once ready\n"
 		"  -m, --mtu MTU	Assign MTU via DHCP/NDP\n"
 		"    a zero value disables assignment\n"
 		"    default: 65520: maximum 802.3 MTU minus 802.3 header\n"
@@ -1186,7 +1187,7 @@ static void conf_sock_listen(const struct ctx *c)
 }
 
 /**
- * conf_fds() - Read fds as supplied by -F/--fd and --pass-fds options
+ * conf_fds() - Read fds from -F/--fd, --ready-fd and --pass-fds options
  * @c:		Execution context
  * @argc:	Argument count
  * @argv:	Command line options
@@ -1196,28 +1197,36 @@ void conf_fds(struct ctx *c, int argc, char **argv)
 	const struct option opt[] = {
 		{ "fd",       required_argument, NULL, 'F' },
 		{ "pass-fds", no_argument,       NULL, 2 },
+		{ "ready-fd", required_argument, NULL, 3 },
 		{ 0 },
 	};
 	int name;
 
-	c->fd_tap = -1;
+	c->fd_tap = c->fd_ready = -1;
 	c->pass_fds = false;
 	optind = 0;
 	do {
 		name = getopt_long(argc, argv, "-:F:", opt, NULL);
-		if (name == 'F') {
+		if (name == 'F' || name == 3) {
 			const char *p = optarg;
 			unsigned long val;
 
 			if (!parse_unsigned(&p, 0, &val) || !parse_eoi(p) ||
 			    val > INT_MAX)
-				die("Invalid --fd: %s", optarg);
+				die("Invalid %s: %s",
+				    name == 'F' ? "--fd" : "--ready-fd", optarg);
 
-			c->fd_tap = (int)val;
+			if (name == 'F')
+				c->fd_tap = (int)val;
+			else
+				c->fd_ready = (int)val;
 		} else if (name == 2) {
 			c->pass_fds = true;
 		}
 	} while (name != -1);
+
+	if (c->fd_ready >= 0 && c->fd_ready == c->fd_tap)
+		die("--fd and --ready-fd can't use the same descriptor");
 }
 
 /**
@@ -1371,6 +1380,7 @@ void conf(struct ctx *c, int argc, char **argv)
 		{"dhcp-boot", required_argument,	NULL,		35 },
 		{"pass-fds",	no_argument,		NULL,		36 },
 		{"dhcpv6-opt",	required_argument,	NULL,		37 },
+		{"ready-fd",	required_argument,	NULL,		38 },
 		{ 0 },
 	};
 	const char *optstring = "+dqfel:hs:c:F:I:p:P:m:a:n:M:g:i:o:D:S:H:461t:u:T:U:";
@@ -1659,6 +1669,9 @@ void conf(struct ctx *c, int argc, char **argv)
 				die("Invalid DHCPv6 option code: %s", optarg);
 
 			dhcpv6_set_opt(dhcpv6_opt_code, p);
+			break;
+		case 38:
+			/* --ready-fd was parsed early */
 			break;
 		case 'd':
 			c->debug = 1;

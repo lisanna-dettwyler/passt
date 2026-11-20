@@ -65,6 +65,7 @@ char pkt_buf[PKT_BUF_BYTES]	__attribute__ ((aligned(PAGE_SIZE)));
 struct ctx passt_ctx = {
 	.pidfile_fd		= -1,
 	.fd_tap			= -1,
+	.fd_ready		= -1,
 	.fd_tap_listen		= -1,
 	.fd_control_listen	= -1,
 	.fd_repair_listen	= -1,
@@ -440,6 +441,14 @@ int main(int argc, char **argv)
 
 	if (devnull_fd > STDERR_FILENO)
 		close(devnull_fd);
+
+	if (c->fd_ready >= 0) {
+		if (write(c->fd_ready, "1\n", 2) < 0)
+			die_perror("Couldn't write to --ready-fd descriptor");
+
+		close(c->fd_ready);
+		c->fd_ready = -1;
+	}
 
 	if (pasta_child_pid) {
 		kill(pasta_child_pid, SIGUSR1);

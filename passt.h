@@ -195,6 +195,7 @@ struct ip6_ctx {
  * @fd_tap:		AF_UNIX socket, tuntap device, or pre-opened socket
  * @fd_control_listen:	Listening control/configuration socket, if any
  * @fd_control:		Control/configuration socket, if any
+ * @fd_ready:		File descriptor to notify once ready, -1 if none
  * @fd_repair_listen:	File descriptor for listening TCP_REPAIR socket, if any
  * @fd_repair:		Connected AF_UNIX socket for TCP_REPAIR helper
  * @our_tap_mac:	Pasta/passt's MAC on the tap link
@@ -275,6 +276,7 @@ struct ctx {
 	int fd_tap;
 	int fd_control_listen;
 	int fd_control;
+	int fd_ready;
 	int fd_repair_listen;
 	int fd_repair;
 	unsigned char our_tap_mac[ETH_ALEN];
