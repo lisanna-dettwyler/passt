@@ -2026,9 +2026,6 @@ void conf(struct ctx *c, int argc, char **argv)
 	else if (optind != argc)
 		die("Extra non-option argument: %s", argv[optind]);
 
-	if (c->pass_fds && *netns)
-		die("--pass-fds can only be used when spawning a command");
-
 	if (c->no_pidns && *netns)
 		die("--no-pidns is incompatible with PID or --netns");
 
